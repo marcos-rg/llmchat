@@ -1,0 +1,16 @@
+# Ruff only. pytest is configured in pytest.ini next to this file; the two are
+# kept apart so `pytest.ini` stays the single obvious place to look for test
+# configuration, which is where pytest itself points people.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+# `from .base import *` in the settings modules is the documented Django idiom
+# for layered settings; F403/F405 flag it and there is no better spelling.
+ignore = ["F403", "F405"]
+
+[tool.ruff.lint.per-file-ignores]
+"config/settings/*.py" = ["F401"]
