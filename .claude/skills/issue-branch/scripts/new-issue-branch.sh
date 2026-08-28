@@ -51,6 +51,11 @@ fi
 
 command -v gh >/dev/null 2>&1 || { echo "Error: gh CLI is not installed" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "Error: gh is not authenticated (run 'gh auth login')" >&2; exit 1; }
+git rev-parse --git-dir >/dev/null 2>&1 || { echo "Error: not inside a git repository" >&2; exit 1; }
+gh repo view --json name >/dev/null 2>&1 || {
+  echo "Error: no GitHub repository for this checkout (add a remote, or skip this step)" >&2
+  exit 1
+}
 
 if [[ -n "$body_file" ]]; then
   if [[ "$body_file" == "-" ]]; then
@@ -60,11 +65,14 @@ if [[ -n "$body_file" ]]; then
   fi
 fi
 
+# -E, not \+: BSD sed (macOS) does not treat \+ as a quantifier, which would leave
+# spaces in the slug and produce an invalid git ref.
 slugify() {
   printf '%s' "$1" \
     | tr '[:upper:]' '[:lower:]' \
-    | sed -e 's/[^a-z0-9]\+/-/g' -e 's/^-\+//' -e 's/-\+$//' \
-    | cut -c1-50
+    | sed -E -e 's/[^a-z0-9]+/-/g' -e 's/^-+//' -e 's/-+$//' \
+    | cut -c1-50 \
+    | sed -E 's/-+$//'
 }
 
 if [[ -z "$branch" ]]; then
@@ -72,6 +80,11 @@ if [[ -z "$branch" ]]; then
   [[ -n "$slug" ]] || slug="issue"
   branch="feature/${slug}"
 fi
+
+git check-ref-format --branch "$branch" >/dev/null 2>&1 || {
+  echo "Error: '$branch' is not a valid branch name" >&2
+  exit 1
+}
 
 # Uncommitted changes would be carried into the new branch on checkout.
 if (( checkout )) && [[ -n "$(git status --porcelain)" ]]; then
@@ -85,7 +98,8 @@ for label in "${labels[@]:-}"; do
   [[ -n "$label" ]] && create_args+=(--label "$label")
 done
 
-issue_url="$(gh "${create_args[@]}")"
+# gh may print progress lines before the URL; the URL is always the last line.
+issue_url="$(gh "${create_args[@]}" | tail -n 1)"
 issue_number="${issue_url##*/}"
 
 if ! [[ "$issue_number" =~ ^[0-9]+$ ]]; then
@@ -97,7 +111,11 @@ develop_args=(issue develop "$issue_number" --name "$branch")
 [[ -n "$base" ]] && develop_args+=(--base "$base")
 (( checkout )) && develop_args+=(--checkout)
 
-gh "${develop_args[@]}"
+if ! gh "${develop_args[@]}"; then
+  echo "Error: issue $issue_number was created ($issue_url) but the branch was not." >&2
+  echo "Fix the cause, then link a branch with: gh issue develop $issue_number --name $branch --checkout" >&2
+  exit 1
+fi
 
 echo "issue: $issue_url"
 echo "branch: $branch"
