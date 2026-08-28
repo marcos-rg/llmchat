@@ -1,0 +1,13 @@
+# Dev/test tooling. Installed only into the image's `dev` stage (see
+# backend/Dockerfile) and by the CI `backend-test` job, so the runtime layer that
+# would ship to a server stays exactly base.txt.
+-r base.txt
+
+pytest==8.3.4
+pytest-django==4.9.0
+pytest-cov==6.0.0
+factory_boy==3.3.1
+ruff==0.8.6
+# Used by the CI-workflow assertion in the task verification blocks; keeping it
+# here means that check runs in the same image as everything else.
+PyYAML==6.0.2

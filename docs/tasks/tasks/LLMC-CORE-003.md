@@ -4,7 +4,8 @@ title: Test harness, linting and CI pipeline
 area: CORE
 phase: 0
 layer: infra
-status: todo
+status: done
+issue: https://github.com/marcos-rg/llmchat/issues/8
 review: none
 depends_on:
   - LLMC-CORE-001
@@ -99,4 +100,22 @@ gh run list --branch "$(git rev-parse --abbrev-ref HEAD)" --limit 3 || echo "no 
 
 ## Evidence
 
-_None recorded yet._
+- `2026-08-28 09:36` make test-backend -> ruff 'All checks passed!'; pytest 2 passed, header 'settings: config.settings.test (from option)', coverage TOTAL 92%
+
+- `2026-08-28 09:36` Health smoke test is real: deleting the 'broker' key from core/views.py's payload -> '1 failed, 1 passed' (test_health_returns_ok_with_the_full_payload); reverted
+
+- `2026-08-28 09:36` docker compose run --rm -e OPENAI_API_KEY= -e ANTHROPIC_API_KEY= backend pytest -q -> 2 passed
+
+- `2026-08-28 09:36` make test-frontend -> vitest --run, 1 file / 3 tests passed (landing route renders mocked max_prompt_length 600; msw onUnhandledRequest:'error' so no real network call)
+
+- `2026-08-28 09:36` make lint -> exit 0; exit 2 with a deliberate ruff violation (backend/core/_lintcanary.py) and again with a deliberate eslint violation (frontend/src/_lintcanary.ts); both canaries removed
+
+- `2026-08-28 09:36` bash scripts/ci-test.sh -> exit 0 (ruff check, pytest --cov --cov-report=term-missing, npm run lint, npm test -- --run)
+
+- `2026-08-28 09:36` yaml.safe_load('.github/workflows/ci.yml') -> jobs == {backend-test, frontend-test, docker-build}; 'grep -q secrets\.' finds nothing
+
+- `2026-08-28 09:36` docker compose build -> llmchat-backend:local and llmchat-frontend:local both built
+
+- `2026-08-28 09:36` python3 scripts/tasks.py verify LLMC-CORE-003 --run -> exit 0
+
+- `2026-08-28 09:36` gh pr checks 9 -> Backend (ruff + pytest) pass, Frontend (eslint + vitest) pass, Docker images build pass (run 33180913842)

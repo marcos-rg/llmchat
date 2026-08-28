@@ -21,6 +21,9 @@ class AppSettings(models.Model):
         verbose_name = "app settings"
         verbose_name_plural = "app settings"
 
+    def __str__(self):
+        return f"AppSettings(max_prompt_length={self.max_prompt_length})"
+
     def save(self, *args, **kwargs):
         # Force the singleton pk so a second row can never be created.
         self.pk = 1
@@ -36,6 +39,3 @@ class AppSettings(models.Model):
             defaults={"max_prompt_length": getattr(settings, "APP_MAX_PROMPT_LENGTH", 600)},
         )
         return obj
-
-    def __str__(self):
-        return f"AppSettings(max_prompt_length={self.max_prompt_length})"

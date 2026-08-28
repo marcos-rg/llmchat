@@ -1,0 +1,122 @@
+# Lint + test on every PR and every push to main. See docs/infra/ci.md.
+#
+# No secrets, by design: the LLM provider clients are mocked in tests and the
+# test settings module carries a hardcoded non-secret SECRET_KEY, so this
+# workflow runs identically on a fork PR.
+#
+# The jobs run natively (pip/npm on the runner) rather than through Compose, so
+# they are fast and cacheable; `scripts/ci-test.sh` is the Compose-based
+# equivalent for reproducing a failure locally, and runs the same four commands.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A new push to a PR supersedes the run in flight.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-test:
+    name: Backend (ruff + pytest)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: llmchat_test
+          POSTGRES_USER: llmchat
+          POSTGRES_PASSWORD: llmchat
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POSTGRES_DB: llmchat_test
+      POSTGRES_USER: llmchat
+      POSTGRES_PASSWORD: llmchat
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+      # Explicitly empty. The provider clients are mocked, and pinning the keys
+      # to "" here is what proves it: a test that reached for a real key would
+      # fail this job rather than pass on a machine that happens to have one.
+      OPENAI_API_KEY: ""
+      ANTHROPIC_API_KEY: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements/dev.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements/dev.txt
+
+      - name: Lint
+        working-directory: backend
+        run: ruff check .
+
+      - name: Test
+        working-directory: backend
+        run: pytest --cov --cov-report=term-missing
+
+  frontend-test:
+    name: Frontend (eslint + vitest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Test
+        working-directory: frontend
+        run: npm test -- --run
+
+  docker-build:
+    name: Docker images build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches drift between requirements/package.json and the images before a
+      # merge. It builds only; the stack is never started and no tests run here.
+      - name: Build images
+        run: docker compose build
