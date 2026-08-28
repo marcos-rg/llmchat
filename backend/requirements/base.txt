@@ -1,0 +1,6 @@
+# Runtime dependencies shared by the `backend` and `worker` containers.
+# Dev/test tooling (pytest, ruff, ...) lands in dev.txt with LLMC-CORE-003.
+Django==5.1.5
+psycopg[binary]==3.2.3
+redis==5.2.1
+django-q2==1.7.2
