@@ -65,6 +65,16 @@ if [[ -n "$body_file" ]]; then
   fi
 fi
 
+# A body lifted from a task file starts with YAML frontmatter, which GitHub renders as
+# a wall of raw keys. Turn it into a compact markdown header instead. Left as-is when
+# there is no frontmatter, or when python3 is unavailable.
+formatter="$(dirname -- "${BASH_SOURCE[0]}")/format-issue-body.py"
+if [[ -n "$body" ]] && command -v python3 >/dev/null 2>&1 && [[ -f "$formatter" ]]; then
+  if formatted="$(printf '%s' "$body" | python3 "$formatter" 2>/dev/null)"; then
+    body="$formatted"
+  fi
+fi
+
 # -E, not \+: BSD sed (macOS) does not treat \+ as a quantifier, which would leave
 # spaces in the slug and produce an invalid git ref.
 slugify() {

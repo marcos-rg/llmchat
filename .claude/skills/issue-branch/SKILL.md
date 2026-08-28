@@ -41,6 +41,10 @@ branch: feature/define-requirements
 
 - Write the title as a short imperative phrase; put context, acceptance criteria and
   scope in the body.
+- A body that starts with YAML frontmatter (any task file) is reformatted automatically:
+  the frontmatter becomes a one-line metadata header plus `Depends on` / `Docs` lines, and
+  the duplicated `# <ID> - <title>` heading is dropped. Pass the task file through as-is;
+  do not hand-strip it.
 - For multi-line bodies, write the markdown to a temp file and pass `--body-file`.
 - The script refuses to run with a dirty working tree unless `--no-checkout` is passed;
   ask the user to commit or stash first.
@@ -62,6 +66,9 @@ python3 scripts/tasks.py show TSC-AUTH-002 > /tmp/issue-body.md
   --label task
 python3 scripts/tasks.py link TSC-AUTH-002 https://github.com/<owner>/<repo>/issues/42
 ```
+
+The frontmatter in that `show` output is rendered as the issue's metadata header, so the
+issue reads as prose rather than raw YAML.
 
 `tasks.py link` records the issue URL in the task's frontmatter, so the link is
 bidirectional: the issue body carries the task, and the task carries the issue.
