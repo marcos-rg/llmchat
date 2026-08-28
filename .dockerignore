@@ -1,0 +1,9 @@
+.git/
+.github/
+.claude/
+docs/
+frontend/
+__pycache__/
+*.py[cod]
+.env
+.DS_Store
