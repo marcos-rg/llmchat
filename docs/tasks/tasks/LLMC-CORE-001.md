@@ -4,7 +4,8 @@ title: Container stack and Django skeleton with health endpoint
 area: CORE
 phase: 0
 layer: infra
-status: todo
+status: in-progress
+issue: https://github.com/marcos-rg/llmchat/issues/4
 review: human
 depends_on: []
 docs:
