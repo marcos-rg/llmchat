@@ -2,7 +2,7 @@
 
 # Implementation tasks
 
-3/24 done (12%) — 20 todo, 1 in-progress, 3 done
+4/24 done (16%) — 20 todo, 4 done
 
 Each task lives in [`docs/tasks/tasks/`](./tasks/). Statuses and evidence are
 written only by `scripts/tasks.py`; the format is defined in
@@ -20,7 +20,7 @@ written only by `scripts/tasks.py`; the format is defined in
 
 | | Task | Title | Layer | Depends on | Living doc | Issue |
 |---|---|---|---|---|---|---|
-| `~` | [LLMC-AUTH-001](./tasks/LLMC-AUTH-001.md) | Session auth and CSRF contract for the cross-origin SPA | contract | LLMC-CORE-001 | [auth-contract.md](../../docs/backend/auth-contract.md) | [#10](https://github.com/marcos-rg/llmchat/issues/10) |
+| `x` | [LLMC-AUTH-001](./tasks/LLMC-AUTH-001.md) | Session auth and CSRF contract for the cross-origin SPA | contract | LLMC-CORE-001 | [auth-contract.md](../../docs/backend/auth-contract.md) | [#10](https://github.com/marcos-rg/llmchat/issues/10) |
 | ` ` | [LLMC-AUTH-002](./tasks/LLMC-AUTH-002.md) | Email/password auth endpoints and session scoping | backend | LLMC-AUTH-001, LLMC-CORE-003 | [auth-backend.md](../../docs/backend/auth-backend.md) | — |
 | ` ` | [LLMC-AUTH-003](./tasks/LLMC-AUTH-003.md) | Login page, auth state and protected routing | frontend | LLMC-AUTH-002, LLMC-CORE-002 | [auth-frontend.md](../../docs/frontend/auth-frontend.md) | — |
 | ` ` | [LLMC-AUTH-004](./tasks/LLMC-AUTH-004.md) | Verify the auth slice on the running stack | verify | LLMC-AUTH-002, LLMC-AUTH-003 | [verification-auth.md](../../docs/infra/verification-auth.md) | — |

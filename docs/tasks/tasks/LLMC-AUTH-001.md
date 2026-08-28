@@ -4,7 +4,7 @@ title: Session auth and CSRF contract for the cross-origin SPA
 area: AUTH
 phase: 1
 layer: contract
-status: in-progress
+status: done
 issue: https://github.com/marcos-rg/llmchat/issues/10
 review: none
 depends_on:
