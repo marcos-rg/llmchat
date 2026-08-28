@@ -94,7 +94,9 @@ cd "$(git rev-parse --show-toplevel)"
 rm -f .env && bash scripts/init.sh --no-superuser
 echo "# sentinel" >> .env && bash scripts/init.sh --no-superuser && grep -q '# sentinel' .env
 docker compose up -d db broker backend worker
-timeout 120 bash -c 'until curl -fsS http://localhost:8000/api/health/ >/dev/null; do sleep 2; done'
+# portable 120s poll (GNU `timeout` is not present on macOS)
+for i in $(seq 1 60); do curl -fsS http://localhost:8000/api/health/ >/dev/null 2>&1 && break; sleep 2; done
+curl -fsS http://localhost:8000/api/health/ >/dev/null
 docker compose ps
 curl -fsS http://localhost:8000/api/health/ | tee /dev/stderr | grep -q '"status": *"ok"'
 curl -fsS http://localhost:8000/api/health/ | grep -q '"db": *"ok"'
@@ -105,6 +107,7 @@ curl -fsS http://localhost:8000/api/health/ | grep -q '"max_prompt_length": *777
 docker compose exec -T backend python manage.py shell -c \
   "from prompts.models import AppSettings; s=AppSettings.load(); s.max_prompt_length=600; s.save()"
 docker compose run --rm backend python manage.py migrate --check
+docker compose run --rm backend python manage.py makemigrations --check --dry-run
 docker compose run --rm backend python manage.py check_queue
 ! docker compose exec -T backend env | grep -qE '^(OPENAI|ANTHROPIC)_API_KEY='
 docker compose exec -T worker env | grep -q '^OPENAI_API_KEY='
