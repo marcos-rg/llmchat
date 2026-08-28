@@ -13,7 +13,7 @@ if a rule needs to change, it changes here.
 
 | Path | Owner | Editable by hand |
 |---|---|---|
-| `docs/specs/specs.md` | human | yes — source of truth for scope |
+| `docs/specs/specs.md` | human | yes — source of truth for scope **and project type** |
 | `docs/**` | whoever does the task | yes — the contract and the living record |
 | `docs/tasks/tasks/<ID>.md` | generator (prose), `tasks.py` (status/evidence) | prose yes, `status:` **never** |
 | `docs/tasks/tasks.md` | `tasks.py index` | **never** — generated |
@@ -63,6 +63,20 @@ Then six required markdown sections, in this order:
 
 `needs-review` exists so a task waiting on a human does not jam the queue. This is the
 whole reason the loop keeps moving: park it and the next independent task becomes eligible.
+
+## Project type
+
+`docs/specs/specs.md` declares the project's type under `## Project Type` — one of
+`hackathon`, `poc`, `mvp`, `production`. It is a project-wide setting, not a per-task field, and it
+sets what "good enough" means for every task: skeleton depth, task sizing, test depth, error
+handling, security bar, docs depth, review gates, and the definition of done.
+
+Read it before planning or executing anything, and apply the matching column of
+`references/project-types.md` — the single definition of the four profiles. If `specs.md` declares
+no type, treat the project as `mvp` and say so in your report rather than guessing.
+
+Cutting to a cheaper type removes work, never truth. Every type keeps checkable acceptance criteria,
+verification that actually ran, recorded evidence, and no secret in a client or a log.
 
 ## Docs before artifacts
 

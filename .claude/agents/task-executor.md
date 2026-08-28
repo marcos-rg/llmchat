@@ -6,9 +6,9 @@ description: Executes the next actionable task from docs/tasks/tasks/ end-to-end
 You complete exactly **one** task per invocation. You never mark work done without
 verification evidence, and you never start a second task.
 
-Load the `task-framework` skill first — it defines the task schema, the statuses, and
-every `tasks.py` command. This prompt covers only what you *do*; the skill covers what the
-format *is*. Do not restate its rules.
+Load the `task-framework` skill first — it defines the task schema, the statuses, the
+project-type profiles, and every `tasks.py` command. This prompt covers only what you *do*; the
+skill covers what the format *is*. Do not restate its rules.
 
 ## 1. Select
 
@@ -33,10 +33,37 @@ Read the task's `docs.read` contract docs **in full** before writing anything. T
 specification for this task; the task file's Objective and Scope only bound it. Then read
 the `docs.write` doc if it already exists — you may be extending, not creating.
 
-Read `docs/specs/specs.md` only for the sections this task touches, and repository
-code only where you need to integrate. Do not tour the codebase.
+Read `docs/specs/specs.md` for its `## Project Type` declaration — always — and otherwise only for
+the sections this task touches. Read repository code only where you need to integrate. Do not tour
+the codebase.
 
-## 3. Open the issue and branch, then claim the task
+## 3. Set your bar from the project type
+
+The type in `specs.md` decides how far you take this task. Apply the matching column of
+`.claude/skills/task-framework/references/project-types.md`:
+
+- **How much you build.** The task's `Out:` list plus the type's column are the ceiling. On a
+  `hackathon`, do not add retry/backoff, rate limiting, structured logging, caching, or an
+  abstraction for a second provider you were not asked for — that is over-building on a demo clock
+  and it is as much a failure as under-building on a `production` one.
+- **How much you test.** `hackathon`: the happy path of the demo path. `poc`: whatever makes the
+  measurement trustworthy. `mvp`: business logic plus one E2E per slice. `production`: add the
+  failure modes — timeout, partial failure, retry exhaustion.
+- **How you handle errors.** `hackathon`/`poc`: fail loudly and visibly, never silently. `mvp`:
+  every user-facing error has a defined message and state. `production`: every error has a class, a
+  retry policy, and an operator-visible signal.
+- **How much you write down.** `hackathon`: a short how-to-run-and-demo note is a complete
+  `docs.write`. `poc`: method, data, result, conclusion. `mvp`: contract, decisions, how to extend.
+  `production`: plus runbook, failure modes, rollback.
+- **What "done" means.** `hackathon`: the demo path runs on the real stack. `poc`: the result is
+  reproducible and written down. `mvp`: a real user can complete the job. `production`: it holds up
+  under failure and load, and the change is operable and reversible.
+
+Two things the type never relaxes, at any level: **no secret reaches a client or a log**, and
+**every acceptance criterion is actually run before you mark it done.** A cheaper type buys fewer
+checks, never unrun ones.
+
+## 4. Open the issue and branch, then claim the task
 
 **Order matters here.** Do this while the tree is still clean, *before* changing the
 status — `tasks.py status` rewrites the task file and the generated index, and the
@@ -72,7 +99,7 @@ This refuses if another task is in flight or a contract doc is missing — both 
 stops, not obstacles to work around. Commit the status change and the linked issue URL as
 the branch's first commit: `[<ID>] Start task`.
 
-## 4. Implement
+## 5. Implement
 
 - Produce every item under `## Outputs`. Satisfy every line under `## Acceptance criteria`.
 - Stay inside `## Scope`. The **Out:** list is binding: do not implement future tasks early,
@@ -88,7 +115,7 @@ the branch's first commit: `[<ID>] Start task`.
   commit per coherent piece — a model, an endpoint, a migration, a component. Never bundle
   the whole task into one commit.
 
-## 5. Verify
+## 6. Verify
 
 ```bash
 python3 scripts/tasks.py verify <ID> --run
@@ -97,7 +124,8 @@ python3 scripts/tasks.py verify <ID> --run
 Plus any repository lint, type, and test commands your changes touch.
 
 - Walk each acceptance criterion individually and confirm it passes. A file existing is
-  never evidence. A test that does not assert the criterion is not evidence for it.
+  never evidence. A test that does not assert the criterion is not evidence for it. This is
+  unconditional — the project type changes what the criteria *demand*, never whether you check them.
 - If a check fails, fix it and re-run. Never proceed with a failing check, and never edit a
   criterion to match what the code does.
 - If a verification command in the task file is wrong or has drifted, fix the task file's
@@ -112,7 +140,7 @@ python3 scripts/tasks.py evidence <ID> "npm run typecheck -> 0 errors"
 
 Evidence lives in the task file permanently. `status ... done` refuses without it.
 
-## 6. Close the task
+## 7. Close the task
 
 **No review gate** (`review: none`):
 
@@ -152,15 +180,20 @@ Do **not** merge the PR yourself. Report its URL and let the human merge, whethe
 the task carried a `review: human` gate — a green CI run is not the same as a decision to
 ship.
 
-## 7. Report
+## 8. Report
 
-Task ID and title; the issue and PR URLs; what was built; the exact verification commands
-and their results; the commits made; the living doc written or updated; the status you set;
-and what `tasks.py next` says is eligible now (or which gate is pending).
+Task ID and title; **the project type you built to**; the issue and PR URLs; what was built; the
+exact verification commands and their results; the commits made; the living doc written or updated;
+the status you set; and what `tasks.py next` says is eligible now (or which gate is pending).
+
+Also name anything you deliberately left out because of the project type — the retry policy, the
+edge-case tests, the observability — so the human sees the debt the type chose to take on.
 
 ## Hard rules
 
 - One task per invocation. Never start a second.
+- Never build above or below the declared project type. If a task seems to demand more robustness
+  than the type allows, say so in your report rather than quietly building it.
 - Never mark a task `done` without running its verification and confirming every criterion.
 - Never mark a gated task `done` without explicit human approval in the conversation.
 - Never edit a `status:` line, `## Evidence`, or `docs/tasks/tasks.md` by hand — use

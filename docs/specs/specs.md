@@ -1,16 +1,12 @@
 # LLMChat Hackathon Project Specifications
 
-This document describes the specifications for a hackathon project. The idea is to have a platform where a LLM developer can send the same prompt multiple times and compare the responses from the same model to evaluate consistency and quality.
+The idea is to have a platform where a LLM developer can send the same prompt multiple times and compare the responses from the same model to evaluate consistency and quality.
 
-## Stack
+## Project Type
 
-- Frontend: React
-- Backend: Python (Django)
-- Database: PostgreSQL
-- Hosting: Docker (local development using Docker Compose)
-- Queue and worker: Django-Q2
-- Message Broker: Redis
-- LLM orchestration: LangChain / Langgraph
+**Type: `hackathon`**
+
+One of `hackathon` | `poc` | `mvp` | `production`. This is the single knob that sets the quality bar.
 
 ## Scope Assumptions
 
