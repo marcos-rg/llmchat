@@ -104,4 +104,4 @@ grep -o '](\.\./[^)#]*\|](\./[^)#]*' "$C" | sed 's/^](//' | while read -r l; do 
 
 ## Evidence
 
-_None recorded yet._
+- `2026-08-28 09:50` tasks.py verify LLMC-AUTH-001 --run -> exit 0, all acceptance-criteria checks (endpoint paths, required sections, CSRF terms, is_staff, invalid_credentials/401 parity, no username field, relative link resolution) passed
