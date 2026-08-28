@@ -72,8 +72,17 @@ shells from `docs/frontend/` exist, so every later page extends a shell that is 
 - [ ] `npx tsc --noEmit` reports no type errors and `npm run build` exits `0`.
 - [ ] The built CSS bundle defines the design tokens: `--color-accent: #5980a6`, all six `--space-*`
       steps (1,2,3,4,6,8) and all three `--radius-*` values.
-- [ ] A fetch of `VITE_API_BASE_URL + "/health/"` issued from inside the `frontend` container returns
-      `200` — the configured base URL and the backend's CORS origin allowance actually agree.
+- [ ] The configured base URL and the backend's CORS origin allowance agree: a request to
+      `$VITE_API_BASE_URL/health/` carrying `Origin: http://localhost:5173` returns `200` with
+      `access-control-allow-origin: http://localhost:5173` and `access-control-allow-credentials:
+      true`, and the `frontend` container can reach the API over the Compose network and read a
+      non-null `max_prompt_length`.
+      (Amended during LLMC-CORE-002: the original wording issued this fetch against
+      `VITE_API_BASE_URL` *from inside* the `frontend` container. That can never pass — the value is
+      the browser-facing `http://localhost:8000/api`, and `localhost` inside the container is the
+      container itself, not the host. The check is split into the two things the criterion was
+      actually after: a real browser-shaped preflight-equivalent request from the host, which is
+      strictly stronger evidence about CORS, plus in-network reachability from the container.)
 - [ ] Requesting `/settings` (an unimplemented route) returns the SPA shell with `200`, not a 404 from
       the dev server — client-side routing fallback works.
 
@@ -90,8 +99,13 @@ docker compose run --rm frontend npm run build
 grep -RqiE -- '--color-accent: *#5980a6' frontend/dist/assets/*.css
 for s in 1 2 3 4 6 8; do grep -Rq -- "--space-$s:" frontend/dist/assets/*.css; done
 for r in sm md lg; do grep -Rq -- "--radius-$r:" frontend/dist/assets/*.css; done
+BASE="$(docker compose exec -T frontend printenv VITE_API_BASE_URL | tr -d '\r\n')"
+HDR="$(mktemp)"
+curl -fsS -H 'Origin: http://localhost:5173' -D "$HDR" -o /dev/null "$BASE/health/"
+grep -qi '^access-control-allow-origin: http://localhost:5173' "$HDR"
+grep -qi '^access-control-allow-credentials: true' "$HDR"
 docker compose exec -T frontend node -e \
-  "fetch(process.env.VITE_API_BASE_URL + '/health/').then(r => { if (r.status !== 200) process.exit(1); })"
+  "fetch('http://backend:8000/api/health/').then(r => r.json()).then(b => { if (b.max_prompt_length == null) process.exit(1); })"
 ```
 
 ## Evidence
