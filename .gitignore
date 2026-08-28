@@ -12,3 +12,8 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite
+
+# Coverage artifacts
+backend/.coverage
+backend/htmlcov/
+frontend/coverage/

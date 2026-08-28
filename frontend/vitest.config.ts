@@ -10,6 +10,13 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: "jsdom",
+      // Non-interactive by default so a bare `npm test` cannot hang CI or
+      // `make test-frontend`. Keeping the script itself as plain `vitest` means
+      // `npm test -- --run` (what docs/infra/testing.md specifies) still works;
+      // baking --run into the script instead makes that invocation die with
+      // "Expected a single value for option --run". Watch mode is `npm run
+      // test:watch`.
+      watch: false,
       setupFiles: ["./src/test/setup.ts"],
       // Only source tests. Without this, `vitest` would also try to run
       // anything under dist/ after a production build.
