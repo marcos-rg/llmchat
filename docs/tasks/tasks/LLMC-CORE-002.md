@@ -91,7 +91,8 @@ shells from `docs/frontend/` exist, so every later page extends a shell that is 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 docker compose up -d db broker backend frontend
-timeout 120 bash -c 'until curl -fsS http://localhost:5173/ >/dev/null; do sleep 2; done'
+# No `timeout(1)` on macOS without coreutils; poll with a bounded loop instead.
+for _ in $(seq 1 60); do curl -fsS http://localhost:5173/ >/dev/null && break; sleep 2; done
 curl -fsS http://localhost:5173/ | grep -q 'id="root"'
 curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:5173/settings | grep -q 200
 docker compose run --rm frontend npx tsc --noEmit
@@ -110,4 +111,20 @@ docker compose exec -T frontend node -e \
 
 ## Evidence
 
-_None recorded yet._
+- `2026-08-28 09:01` python3 scripts/tasks.py verify LLMC-CORE-002 --run -> exit 0 (full block: compose up, SPA reachable, tsc, build, token greps, CORS headers, in-network health fetch)
+
+- `2026-08-28 09:01` docker compose ps -> db/broker/backend/frontend all healthy; curl http://localhost:5173/ -> 200 and HTML contains id="root"
+
+- `2026-08-28 09:01` curl -o /dev/null -w '%{http_code}' http://localhost:5173/settings -> 200 (SPA fallback, not a dev-server 404)
+
+- `2026-08-28 09:01` docker compose run --rm frontend npx tsc --noEmit -> exit 0, no diagnostics
+
+- `2026-08-28 09:01` docker compose run --rm frontend npm run build -> exit 0; dist/assets/index-10jP0Ntq.css 9.12 kB, index-Du543s8U.js 236.52 kB
+
+- `2026-08-28 09:01` grep on frontend/dist/assets/*.css -> '--color-accent: #5980a6' present; --space-{1,2,3,4,6,8} and --radius-{sm,md,lg} all present
+
+- `2026-08-28 09:01` curl -H 'Origin: http://localhost:5173' $VITE_API_BASE_URL/health/ (BASE=http://localhost:8000/api) -> 200 with access-control-allow-origin: http://localhost:5173 and access-control-allow-credentials: true
+
+- `2026-08-28 09:01` docker compose exec -T frontend node fetch http://backend:8000/api/health/ -> {"status":"ok","db":"ok","broker":"ok","max_prompt_length":600}
+
+- `2026-08-28 09:01` regression check after adding corsheaders: worker healthy; docker compose run --rm backend python manage.py check_queue -> queue ok: worker returned pong:edb3ddf3...
