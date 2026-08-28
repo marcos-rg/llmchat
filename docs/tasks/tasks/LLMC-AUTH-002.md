@@ -4,7 +4,8 @@ title: Email/password auth endpoints and session scoping
 area: AUTH
 phase: 1
 layer: backend
-status: todo
+status: done
+issue: https://github.com/marcos-rg/llmchat/issues/12
 review: none
 depends_on:
   - LLMC-AUTH-001
@@ -67,9 +68,11 @@ endpoint refuses unauthenticated callers. This is the gate every later feature s
       `{"error": "invalid_credentials", ...}`; the body never reveals whether the email exists.
 - [ ] `POST /api/auth/login/` with a missing `password` field returns `400`.
 - [ ] `GET /api/auth/session/` returns `200` with the user object when a session cookie is present, and
-      `401` when it is not; it sets the `csrftoken` cookie in both cases.
+      `200` with `{"user": null}` when it is not (never `401` — see
+      `docs/backend/auth-contract.md#unauthenticated-response-shape`); it sets the `csrftoken` cookie in
+      both cases.
 - [ ] `POST /api/auth/logout/` returns `204` with a session, `401` without, and a subsequent
-      `GET /api/auth/session/` with the old cookie returns `401`.
+      `GET /api/auth/session/` with the old cookie returns `200` with `{"user": null}`.
 - [ ] An unsafe request with a session cookie but no `X-CSRFToken` header is rejected with the status
       the contract specifies.
 - [ ] `GET /api/health/` still returns `200` without authentication, while every other `/api/` route
@@ -87,7 +90,7 @@ docker compose run --rm backend python manage.py migrate --check
 docker compose run --rm backend python manage.py shell -c \
   "from django.contrib.auth import get_user_model as G; U=G(); U.objects.filter(email='dev@example.com').delete(); U.objects.create_user(email='dev@example.com', password='devpass123')"
 J=$(mktemp)
-curl -fsS -c "$J" http://localhost:8000/api/auth/session/ -o /dev/null -w '%{http_code}\n' | grep -q 401
+curl -fsS -c "$J" http://localhost:8000/api/auth/session/ -o /dev/null -w '%{http_code}\n' | grep -q 200
 grep -q csrftoken "$J"
 TOKEN=$(awk '/csrftoken/{print $7}' "$J")
 curl -fsS -b "$J" -c "$J" -X POST http://localhost:8000/api/auth/login/ \
@@ -95,15 +98,26 @@ curl -fsS -b "$J" -c "$J" -X POST http://localhost:8000/api/auth/login/ \
   -d '{"email":"dev@example.com","password":"devpass123"}' | grep -q '"is_staff"'
 grep -q sessionid "$J"
 curl -fsS -b "$J" http://localhost:8000/api/auth/session/ | grep -q 'dev@example.com'
+# Django rotates the CSRF token on login (auth-contract.md#csrf) -- re-read it
+# from the jar, the same way the SPA must re-read document.cookie post-login.
+TOKEN=$(awk '/csrftoken/{print $7}' "$J")
 curl -s -o /dev/null -w '%{http_code}\n' -b "$J" -X POST http://localhost:8000/api/auth/login/ \
   -H 'Content-Type: application/json' -H "X-CSRFToken: $TOKEN" \
   -d '{"email":"dev@example.com","password":"wrong"}' | grep -q 401
 curl -s -o /dev/null -w '%{http_code}\n' -b "$J" -X POST http://localhost:8000/api/auth/logout/ \
   -H "X-CSRFToken: $TOKEN" | grep -q 204
-curl -s -o /dev/null -w '%{http_code}\n' -b "$J" http://localhost:8000/api/auth/session/ | grep -q 401
+curl -s -b "$J" http://localhost:8000/api/auth/session/ | grep -q '"user": *null'
 curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:8000/api/health/ | grep -q 200
 ```
 
 ## Evidence
 
-_None recorded yet._
+- `2026-08-28 10:09` docker compose run --rm backend pytest accounts -q -> 16 passed
+
+- `2026-08-28 10:09` docker compose run --rm backend python manage.py migrate --check -> exit 0, no migrations to apply
+
+- `2026-08-28 10:09` bash scripts/ci-test.sh --backend -> 18 passed, ruff clean, 95% coverage
+
+- `2026-08-28 10:09` python3 scripts/tasks.py verify LLMC-AUTH-002 --run -> full curl-based verification script (login/logout/session/csrf/health) passed, exit 0
+
+- `2026-08-28 10:09` manage.py createsuperuser --noinput --email admin@example.com -> superuser created, is_staff/is_superuser True, password verified

@@ -32,10 +32,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
+    "rest_framework",
     "django_q",
     "core",
+    "accounts",
     "prompts",
 ]
+
+# Custom user model: email is the sole login identifier, no username field.
+# See accounts/models.py and docs/backend/auth-contract.md
+# #user-model-and-account-creation.
+AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -103,6 +110,32 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 CORS_ALLOW_CREDENTIALS = True
 
+# --- CSRF / session cookies ---------------------------------------------------
+# Both cookies are scoped to the API's own origin; the SPA is a different
+# origin (localhost:5173 vs :8000), so CsrfViewMiddleware's double-submit-cookie
+# check is what protects unsafe requests, not SameSite alone. See
+# docs/backend/auth-contract.md#csrf and #cookies-local-http-development.
+CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173")
+
+# `csrftoken` must be JS-readable so the SPA can echo it in X-CSRFToken;
+# `sessionid` must not be. Both are non-Secure/SameSite=Lax here because local
+# dev is plain HTTP on both origins -- see auth-contract.md's HTTPS deployment
+# note for what changes off localhost. These match Django's own defaults; they
+# are spelled out explicitly because the contract fixes them as a decision, not
+# an accident of Django's defaults.
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# 2 weeks (Django's default), spelled out because auth-contract.md#session
+# -lifetime fixes it as a deliberate choice: a short session would fight the
+# "ephemeral data survives a refresh" requirement in db-schema.md.
+SESSION_COOKIE_AGE = 1209600
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
 # --- Redis / Django-Q2 -------------------------------------------------------
 REDIS_HOST = os.environ.get("REDIS_HOST", "broker")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
@@ -125,3 +158,20 @@ Q_CLUSTER = {
 
 # Seeds the AppSettings singleton on first migrate; see prompts/migrations.
 APP_MAX_PROMPT_LENGTH = int(os.environ.get("APP_MAX_PROMPT_LENGTH", "600"))
+
+# --- DRF -----------------------------------------------------------------
+# `CsrfSessionAuthentication` (accounts/authentication.py) enforces CSRF on
+# every unsafe request, including anonymous ones (e.g. login) -- DRF's stock
+# SessionAuthentication only enforces it once a session user is already
+# found, which would leave login itself unprotected. `IsAuthenticated` as the
+# global default means every future endpoint is auth-gated unless it opts out
+# with AllowAny, per auth-contract.md#permissions.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "accounts.authentication.CsrfSessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "EXCEPTION_HANDLER": "core.exceptions.exception_handler",
+}
