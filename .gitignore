@@ -11,3 +11,4 @@ __pycache__/
 # Frontend build artifacts
 frontend/node_modules/
 frontend/dist/
+frontend/.vite
