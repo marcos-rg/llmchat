@@ -1,0 +1,9 @@
+dist
+coverage
+node_modules
+.vite
+package-lock.json
+# Transcribed verbatim from docs/frontend/mock/styles.css, which stays the source
+# of truth (see docs/frontend/app-shell.md). Reformatting these would make the
+# next reskin a diff against a moving target instead of a file copy.
+src/styles
