@@ -4,7 +4,7 @@ title: Email/password auth endpoints and session scoping
 area: AUTH
 phase: 1
 layer: backend
-status: in-progress
+status: done
 issue: https://github.com/marcos-rg/llmchat/issues/12
 review: none
 depends_on:
