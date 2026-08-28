@@ -4,7 +4,7 @@ title: React app shell, design tokens and health page
 area: CORE
 phase: 0
 layer: frontend
-status: in-progress
+status: done
 issue: https://github.com/marcos-rg/llmchat/issues/6
 review: none
 depends_on:
