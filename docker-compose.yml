@@ -1,0 +1,91 @@
+# Local-only stack for LLMChat (see docs/infra/architecture.md).
+#
+# Env handling is deliberately explicit rather than `env_file: .env`: the backend
+# container must NOT receive OPENAI_API_KEY / ANTHROPIC_API_KEY, and an env_file
+# would inject the whole file into every service. Compose still reads ./.env for
+# ${...} interpolation below, so there is a single source of values.
+
+x-django-env: &django-env
+  DJANGO_SETTINGS_MODULE: config.settings.local
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-in-local-env}
+  DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+  DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+  POSTGRES_DB: ${POSTGRES_DB:-llmchat}
+  POSTGRES_USER: ${POSTGRES_USER:-llmchat}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-llmchat}
+  POSTGRES_HOST: ${POSTGRES_HOST:-db}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  REDIS_HOST: ${REDIS_HOST:-broker}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  APP_MAX_PROMPT_LENGTH: ${APP_MAX_PROMPT_LENGTH:-600}
+
+x-backend-image: &backend-image
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+  image: llmchat-backend:local
+  volumes:
+    - ./backend:/app
+  depends_on:
+    db:
+      condition: service_healthy
+    broker:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-llmchat}
+      POSTGRES_USER: ${POSTGRES_USER:-llmchat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-llmchat}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  broker:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    <<: *backend-image
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      <<: *django-env
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/health/ >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+
+  worker:
+    <<: *backend-image
+    command: python manage.py qcluster
+    environment:
+      <<: *django-env
+      Q_CLUSTER_WORKERS: ${Q_CLUSTER_WORKERS:-4}
+      # Worker-only: the sole process with outbound access to the LLM providers.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'manage.py qcluster' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+volumes:
+  pgdata:

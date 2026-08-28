@@ -4,7 +4,8 @@ title: Container stack and Django skeleton with health endpoint
 area: CORE
 phase: 0
 layer: infra
-status: todo
+status: done
+issue: https://github.com/marcos-rg/llmchat/issues/4
 review: human
 depends_on: []
 docs:
@@ -93,7 +94,9 @@ cd "$(git rev-parse --show-toplevel)"
 rm -f .env && bash scripts/init.sh --no-superuser
 echo "# sentinel" >> .env && bash scripts/init.sh --no-superuser && grep -q '# sentinel' .env
 docker compose up -d db broker backend worker
-timeout 120 bash -c 'until curl -fsS http://localhost:8000/api/health/ >/dev/null; do sleep 2; done'
+# portable 120s poll (GNU `timeout` is not present on macOS)
+for i in $(seq 1 60); do curl -fsS http://localhost:8000/api/health/ >/dev/null 2>&1 && break; sleep 2; done
+curl -fsS http://localhost:8000/api/health/ >/dev/null
 docker compose ps
 curl -fsS http://localhost:8000/api/health/ | tee /dev/stderr | grep -q '"status": *"ok"'
 curl -fsS http://localhost:8000/api/health/ | grep -q '"db": *"ok"'
@@ -104,6 +107,7 @@ curl -fsS http://localhost:8000/api/health/ | grep -q '"max_prompt_length": *777
 docker compose exec -T backend python manage.py shell -c \
   "from prompts.models import AppSettings; s=AppSettings.load(); s.max_prompt_length=600; s.save()"
 docker compose run --rm backend python manage.py migrate --check
+docker compose run --rm backend python manage.py makemigrations --check --dry-run
 docker compose run --rm backend python manage.py check_queue
 ! docker compose exec -T backend env | grep -qE '^(OPENAI|ANTHROPIC)_API_KEY='
 docker compose exec -T worker env | grep -q '^OPENAI_API_KEY='
@@ -112,4 +116,20 @@ docker compose exec -T worker env | grep -q '^ANTHROPIC_API_KEY='
 
 ## Evidence
 
-_None recorded yet._
+- `2026-08-28 01:19` tasks.py verify LLMC-CORE-001 --run (full block, cold stack after 'docker compose down -v') -> exit 0
+
+- `2026-08-28 01:19` docker compose up -d db broker backend worker -> db/broker/backend/worker all 'Up (healthy)' within ~20s
+
+- `2026-08-28 01:19` curl /api/health/ -> 200 {"status": "ok", "db": "ok", "broker": "ok", "max_prompt_length": 600}
+
+- `2026-08-28 01:19` AppSettings.max_prompt_length=777 via shell -> next /api/health/ returned 777; reset to 600 -> returned 600 (value is DB-backed, not a constant)
+
+- `2026-08-28 01:19` manage.py migrate --check -> exit 0; manage.py makemigrations --check --dry-run -> 'No changes detected', exit 0
+
+- `2026-08-28 01:19` manage.py check_queue -> exit 0, 'queue ok: worker returned pong:f602d749e7c145d599e8de702b691b81'
+
+- `2026-08-28 01:19` docker compose exec backend env | grep -E '^(OPENAI|ANTHROPIC)_API_KEY=' -> no match; same grep on worker -> 2 matches
+
+- `2026-08-28 01:19` rm .env && scripts/init.sh --no-superuser -> exit 0, .env created; sentinel appended, re-run -> exit 0, sentinel still present
+
+- `2026-08-28 01:19` Cold-start migration race reproduced before the fix (MigrationSchemaMissing on backend), then 'down -v' + cold boot with migrate_locked -> both containers healthy
