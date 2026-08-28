@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<title>LLMChat — UI mockups</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="./styles.css" />
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+.llm-spin { animation: spin 1s linear infinite; }
+.llm-shimmer { background: linear-gradient(90deg, var(--color-neutral-200) 0%, var(--color-neutral-100) 50%, var(--color-neutral-200) 100%); background-size: 200px 100%; animation: shimmer 1.4s ease-in-out infinite; }
+body { margin: 0; }
+</style>
+</helmet>
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);padding:var(--space-4)">
+  <div class="card blueprint" style="width:380px;padding:var(--space-8) var(--space-6);gap:var(--space-4);background:var(--color-bg)">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2)">
+      <div style="width:28px;height:28px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;flex:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="1.5"><path d="M4 4h16v12H8l-4 4z"/></svg>
+      </div>
+      <div style="font-family:var(--font-heading);font-weight:600;font-size:22px">LLMChat</div>
+    </div>
+    <p style="margin:0 0 var(--space-4);font-size:13px;opacity:0.75">Send the same prompt to a model multiple times and compare the responses side by side.</p>
+    <div class="field"><label for="ll-email">Email</label><input class="input" id="ll-email" type="email" value="{{ email }}" onChange="{{ onEmailChange }}" placeholder="you@company.com" /></div>
+    <div class="field"><label for="ll-pass">Password</label><input class="input" id="ll-pass" type="password" placeholder="••••••••••" /></div>
+    <button type="button" class="btn btn-primary btn-block blueprint" onClick="{{ login }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Log in<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+    <p style="margin:var(--space-4) 0 0;font-size:11px;opacity:0.55">Provider API keys are configured by your admin — you never enter or see them here.</p>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)">
+
+  <nav class="nav" style="border-bottom:1px solid var(--color-divider)">
+    <span class="nav-brand">LLMChat</span>
+    <a href="#" aria-current="{{ setupCurrent }}" onClick="{{ goSetup }}">New run</a>
+    <a href="#" aria-current="{{ settingsCurrent }}" onClick="{{ goSettings }}">Settings</a>
+    <span style="margin-left:auto;font-size:13px;opacity:0.65">{{ email }}</span>
+    <button type="button" class="btn btn-ghost" onClick="{{ logout }}">Log out<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
+  </nav>
+
+  <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ true }}">
+  <main style="flex:1;max-width:760px;width:100%;margin:0 auto;padding:var(--space-8) var(--space-4)">
+    <div class="tag tag-outline" style="margin-bottom:var(--space-3)">New run</div>
+    <h1 style="margin-bottom:var(--space-2)">Compare model consistency</h1>
+    <p style="opacity:0.75;font-size:14px;margin-bottom:var(--space-6)">Send one prompt several times and see how much the answers vary.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4)">
+      <div class="field"><label id="ll-provider-lbl">Provider</label>
+        <div class="seg" role="radiogroup" aria-labelledby="ll-provider-lbl">
+          <label class="seg-opt"><input type="radio" name="provider" checked="{{ isOpenAI }}" onChange="{{ setProviderOpenAI }}" />OpenAI</label>
+          <label class="seg-opt"><input type="radio" name="provider" checked="{{ isAnthropic }}" onChange="{{ setProviderAnthropic }}" />Anthropic</label>
+        </div>
+      </div>
+      <div class="field"><label for="ll-model">Model</label>
+        <select class="input" id="ll-model" value="{{ model }}" onChange="{{ onModelChange }}">
+          <sc-for list="{{ modelOptions }}" as="m" hint-placeholder-count="3">
+            <option value="{{ m }}">{{ m }}</option>
+          </sc-for>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:var(--space-4)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <label for="ll-sys" style="margin-bottom:0">System prompt</label>
+        <a href="#" onClick="{{ goSettings }}" style="font-size:11px">Manage library →</a>
+      </div>
+      <textarea class="input" id="ll-sys" rows="2" value="{{ systemPrompt }}" onChange="{{ onSystemPromptChange }}"></textarea>
+    </div>
+
+    <div class="field" style="margin-bottom:var(--space-2)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <label for="ll-prompt" style="margin-bottom:0">Prompt</label>
+        <span style="font-size:11px;color:{{ counterColor }}">{{ promptLen }} / {{ maxLen }}</span>
+      </div>
+      <textarea class="input" id="ll-prompt" rows="5" value="{{ prompt }}" onChange="{{ onPromptChange }}"></textarea>
+    </div>
+
+    <sc-if value="{{ promptTooLong }}" hint-placeholder-val="{{ false }}">
+      <div class="blueprint" style="position:relative;display:flex;gap:var(--space-2);align-items:flex-start;padding:var(--space-3);border-color:var(--color-accent);margin-bottom:var(--space-4)">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-800)" stroke-width="1.5" style="flex:none;margin-top:1px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <p style="margin:0;font-size:13px;color:var(--color-accent-800)">Prompt exceeds {{ maxLen }} characters. Shorten it before running — the platform blocks oversized prompts to keep runs consistent.</p>
+      </div>
+    </sc-if>
+
+    <div class="field" style="margin-bottom:var(--space-6)">
+      <label id="ll-count-lbl">Number of runs</label>
+      <div class="seg" role="radiogroup" aria-labelledby="ll-count-lbl">
+        <label class="seg-opt"><input type="radio" name="count" checked="{{ isCount2 }}" onChange="{{ setCount2 }}" />2</label>
+        <label class="seg-opt"><input type="radio" name="count" checked="{{ isCount3 }}" onChange="{{ setCount3 }}" />3</label>
+        <label class="seg-opt"><input type="radio" name="count" checked="{{ isCount4 }}" onChange="{{ setCount4 }}" />4</label>
+        <label class="seg-opt"><input type="radio" name="count" checked="{{ isCount5 }}" onChange="{{ setCount5 }}" />5</label>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-primary btn-block blueprint" disabled="{{ promptTooLong }}" onClick="{{ startRun }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Run prompt {{ runCount }} times<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isRun }}" hint-placeholder-val="{{ false }}">
+  <main style="flex:1;width:100%;padding:var(--space-6) var(--space-4);display:flex;flex-direction:column;gap:var(--space-4);min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-4);flex-wrap:wrap;max-width:1400px;margin:0 auto;width:100%">
+      <div style="max-width:640px">
+        <div class="tag tag-accent" style="margin-bottom:var(--space-2)">{{ provider }} · {{ model }}</div>
+        <div style="font-size:14px;line-height:1.5"><span style="opacity:0.55">Prompt —</span> {{ prompt }}</div>
+      </div>
+      <div style="display:flex;gap:var(--space-4);align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="margin:0"><label id="ll-phase-lbl">Demo: phase</label>
+          <div class="seg" role="radiogroup" aria-labelledby="ll-phase-lbl">
+            <label class="seg-opt"><input type="radio" name="phase" checked="{{ isPhaseQueued }}" onChange="{{ setPhaseQueued }}" />Queued</label>
+            <label class="seg-opt"><input type="radio" name="phase" checked="{{ isPhaseProgress }}" onChange="{{ setPhaseProgress }}" />Running</label>
+            <label class="seg-opt"><input type="radio" name="phase" checked="{{ isPhaseComplete }}" onChange="{{ setPhaseComplete }}" />Complete</label>
+          </div>
+        </div>
+        <div class="field" style="margin:0"><label id="ll-diff-lbl">Diff highlighting</label>
+          <div class="seg" role="radiogroup" aria-labelledby="ll-diff-lbl">
+            <label class="seg-opt"><input type="radio" name="diff" checked="{{ diffOn }}" onChange="{{ setDiffOn }}" />On</label>
+            <label class="seg-opt"><input type="radio" name="diff" checked="{{ diffOff }}" onChange="{{ setDiffOff }}" />Off</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:var(--space-4);overflow-x:auto;padding-bottom:var(--space-2);max-width:1400px;margin:0 auto;width:100%">
+      <sc-for list="{{ visibleResponses }}" as="resp" hint-placeholder-count="4">
+        <div class="card blueprint" style="{{ resp.colStyle }}">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-2)">
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:15px">{{ resp.label }}</div>
+            <sc-if value="{{ resp.baseline }}" hint-placeholder-val="{{ false }}"><span class="tag tag-outline">Baseline</span></sc-if>
+          </div>
+
+          <sc-if value="{{ resp.showQueued }}" hint-placeholder-val="{{ false }}">
+            <span class="tag tag-neutral" style="width:fit-content"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right:4px;vertical-align:-1px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Queued</span>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:var(--space-1)">
+              <div class="llm-shimmer" style="height:11px;width:92%"></div>
+              <div class="llm-shimmer" style="height:11px;width:78%"></div>
+              <div class="llm-shimmer" style="height:11px;width:85%"></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ resp.showRunning }}" hint-placeholder-val="{{ false }}">
+            <span class="tag tag-outline" style="width:fit-content"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="llm-spin" style="margin-right:4px;vertical-align:-1px"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Running</span>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:var(--space-1)">
+              <div class="llm-shimmer" style="height:11px;width:96%"></div>
+              <div class="llm-shimmer" style="height:11px;width:64%"></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ resp.showFailed }}" hint-placeholder-val="{{ false }}">
+            <span class="tag tag-neutral" style="width:fit-content"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right:4px;vertical-align:-1px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Failed</span>
+            <p style="font-size:13px;opacity:0.75;margin:var(--space-1) 0 0">{{ resp.failReason }}</p>
+            <button type="button" class="btn btn-secondary blueprint" style="margin-top:var(--space-2);width:fit-content" onClick="{{ resp.retry }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Retry<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12a9 9 0 1 1 2.64 6.36"/><path d="M3 21v-6h6"/></svg></button>
+          </sc-if>
+
+          <sc-if value="{{ resp.showRetrying }}" hint-placeholder-val="{{ false }}">
+            <span class="tag tag-outline" style="width:fit-content"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="llm-spin" style="margin-right:4px;vertical-align:-1px"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Retrying</span>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:var(--space-1)">
+              <div class="llm-shimmer" style="height:11px;width:90%"></div>
+              <div class="llm-shimmer" style="height:11px;width:70%"></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ resp.showComplete }}" hint-placeholder-val="{{ true }}">
+            <span class="tag tag-accent" style="width:fit-content"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right:4px;vertical-align:-1px"><path d="M20 6 9 17l-5-5"/></svg>Complete</span>
+            <p style="font-size:13px;line-height:1.6;margin:var(--space-1) 0 0">
+              <sc-for list="{{ resp.tokens }}" as="tok" hint-placeholder-count="10">
+                <sc-if value="{{ tok.hl }}" hint-placeholder-val="{{ false }}"><mark style="background:var(--color-accent-200);color:var(--color-accent-800);padding:1px 2px;border-radius:2px;font-style:normal">{{ tok.text }}</mark></sc-if>
+                <sc-if value="{{ tok.plain }}" hint-placeholder-val="{{ true }}"><span>{{ tok.text }}</span></sc-if>
+              </sc-for>
+            </p>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+  <main style="flex:1;max-width:760px;width:100%;margin:0 auto;padding:var(--space-8) var(--space-4)">
+    <div class="tag tag-outline" style="margin-bottom:var(--space-3)">Settings</div>
+    <h1 style="margin-bottom:var(--space-6)">System prompt library &amp; limits</h1>
+
+    <h3 style="margin-bottom:var(--space-3)">Saved system prompts</h3>
+    <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-8)">
+      <sc-for list="{{ libraryPrompts }}" as="lp" hint-placeholder-count="3">
+        <div class="card blueprint" style="flex-direction:row;align-items:center;justify-content:space-between;gap:var(--space-4)">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="min-width:0">
+            <div class="card-title" style="margin-bottom:2px">{{ lp.name }}</div>
+            <p class="card-body" style="margin:0">{{ lp.text }}</p>
+          </div>
+          <button type="button" class="btn btn-secondary blueprint" style="flex:none" onClick="{{ lp.use }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Use</button>
+        </div>
+      </sc-for>
+    </div>
+
+    <h3 style="margin-bottom:var(--space-3)">Prompt limits</h3>
+    <div class="field" style="max-width:220px;margin-bottom:var(--space-8)">
+      <label for="ll-maxlen">Maximum prompt length (characters)</label>
+      <input class="input" id="ll-maxlen" type="number" value="{{ maxLen }}" onChange="{{ onMaxLenChange }}" min="100" max="4000" step="50" />
+    </div>
+
+    <h3 style="margin-bottom:var(--space-3)">Provider connections</h3>
+    <div style="display:flex;gap:var(--space-3)">
+      <span class="tag tag-accent">OpenAI · connected (admin key)</span>
+      <span class="tag tag-accent">Anthropic · connected (admin key)</span>
+    </div>
+    <p style="font-size:12px;opacity:0.6;max-width:56ch;margin-top:var(--space-3)">API keys are set once by an admin via environment variables and shared by all users — no user ever enters or views a raw key here.</p>
+  </main>
+  </sc-if>
+
+</div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const BASELINE = "TCP is a connection-oriented protocol that guarantees reliable, ordered delivery of data between two devices. UDP is a connectionless protocol that sends data faster but does not guarantee delivery or order.";
+
+function tok(text, hl) { return { text, hl, plain: !hl }; }
+const TOKENS_B = [
+  tok("TCP ",false),tok("is ",false),tok("a ",false),tok("connection-oriented ",false),tok("protocol ",false),tok("that ",false),tok("guarantees ",false),tok("reliable, ",false),
+  tok("in-order ",true),tok("delivery ",false),tok("of ",false),tok("data ",false),tok("between ",false),tok("two ",false),tok("hosts. ",true),
+  tok("UDP ",false),tok("is ",false),tok("a ",false),tok("connectionless ",false),tok("protocol ",false),tok("that ",false),tok("transmits ",true),tok("data ",false),tok("faster ",false),tok("but ",false),
+  tok("offers ",true),tok("no ",true),tok("guarantee ",true),tok("of ",false),tok("delivery ",false),tok("or ",false),tok("ordering.",true)
+];
+const TOKENS_D = [
+  tok("TCP ",false),tok("is ",false),tok("a ",false),tok("connection-oriented ",false),tok("protocol ",false),tok("that ",false),tok("guarantees ",false),tok("reliable, ",false),
+  tok("ordered ",false),tok("delivery ",false),tok("of ",false),tok("data ",false),tok("between ",false),tok("two ",false),tok("hosts. ",true),
+  tok("UDP ",false),tok("is ",false),tok("a ",false),tok("connectionless ",false),tok("protocol ",false),tok("that ",false),
+  tok("prioritizes ",true),tok("speed ",true),tok("over ",true),tok("guaranteed ",true),tok("delivery ",false),tok("or ",false),tok("ordering.",true)
+];
+const TOKENS_RETRY = [
+  tok("TCP ",false),tok("is ",false),tok("a ",false),tok("connection-oriented ",false),tok("protocol ",false),tok("that ",false),tok("guarantees ",false),tok("reliable, ",false),
+  tok("ordered ",false),tok("delivery ",false),tok("of ",false),tok("data ",false),tok("between ",false),tok("two ",false),tok("devices. ",false),
+  tok("UDP ",false),tok("is ",false),tok("a ",false),tok("connectionless ",false),tok("protocol ",false),tok("that ",false),tok("sends ",false),tok("data ",false),tok("faster ",false),
+  tok("with ",true),tok("no ",true),tok("delivery ",true),tok("guarantee ",true),tok("or ",false),tok("ordering.",true)
+];
+
+const RESPONSES = [
+  { id: 1, label: "Run 1", baseline: true, status: { queued: "queued", progress: "complete", complete: "complete" }, text: BASELINE },
+  { id: 2, label: "Run 2", baseline: false, status: { queued: "queued", progress: "running", complete: "complete" }, tokens: TOKENS_B },
+  { id: 3, label: "Run 3", baseline: false, status: { queued: "queued", progress: "failed", complete: "failed" }, failReason: "Rate limited by provider (HTTP 429). Retry to resend the request." },
+  { id: 4, label: "Run 4", baseline: false, status: { queued: "queued", progress: "queued", complete: "complete" }, tokens: TOKENS_D }
+];
+
+const MODELS = {
+  OpenAI: ["gpt-4o", "gpt-4o-mini", "gpt-4.1"],
+  Anthropic: ["claude-opus-4.5", "claude-sonnet-4.5", "claude-haiku-4.5"]
+};
+
+const LIBRARY = [
+  { name: "Neutral assistant", text: "You are a helpful, concise assistant. Answer in plain language and avoid speculation." },
+  { name: "Strict JSON output", text: "Respond only with valid JSON matching the requested schema. No prose, no markdown." },
+  { name: "Senior code reviewer", text: "Review the given code for correctness, security and style. Be direct about issues found." }
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: "login",
+    email: "you@company.com",
+    provider: "OpenAI",
+    model: "gpt-4o",
+    systemPrompt: "You are a helpful, concise assistant. Answer in plain language and avoid speculation.",
+    prompt: "Explain the difference between TCP and UDP in two concise sentences suitable for a junior engineer.",
+    maxLen: 600,
+    runCount: 4,
+    runPhase: "progress",
+    diffOn: true,
+    retrying: false,
+    retried: false
+  };
+
+  login = () => this.setState({ screen: "setup" });
+  logout = () => this.setState({ screen: "login", retrying: false, retried: false, runPhase: "progress" });
+  goSetup = (e) => { e.preventDefault(); this.setState({ screen: "setup" }); };
+  goSettings = (e) => { e.preventDefault(); this.setState({ screen: "settings" }); };
+  startRun = () => this.setState({ screen: "run", runPhase: "queued", retrying: false, retried: false }, () => {
+    setTimeout(() => this.setState(s => s.screen === "run" ? { runPhase: "progress" } : {}), 1200);
+    setTimeout(() => this.setState(s => s.screen === "run" ? { runPhase: "complete" } : {}), 2600);
+  });
+
+  onEmailChange = (e) => this.setState({ email: e.target.value });
+  onPromptChange = (e) => this.setState({ prompt: e.target.value });
+  onSystemPromptChange = (e) => this.setState({ systemPrompt: e.target.value });
+  onModelChange = (e) => this.setState({ model: e.target.value });
+  onMaxLenChange = (e) => this.setState({ maxLen: Number(e.target.value) || 0 });
+  setProviderOpenAI = () => this.setState({ provider: "OpenAI", model: MODELS.OpenAI[0] });
+  setProviderAnthropic = () => this.setState({ provider: "Anthropic", model: MODELS.Anthropic[0] });
+  setCount2 = () => this.setState({ runCount: 2 });
+  setCount3 = () => this.setState({ runCount: 3 });
+  setCount4 = () => this.setState({ runCount: 4 });
+  setCount5 = () => this.setState({ runCount: 5 });
+  setPhaseQueued = () => this.setState({ runPhase: "queued" });
+  setPhaseProgress = () => this.setState({ runPhase: "progress" });
+  setPhaseComplete = () => this.setState({ runPhase: "complete" });
+  setDiffOn = () => this.setState({ diffOn: true });
+  setDiffOff = () => this.setState({ diffOn: false });
+  retryFailed = () => this.setState({ retrying: true }, () => {
+    setTimeout(() => this.setState({ retrying: false, retried: true }), 1300);
+  });
+  useLibraryPrompt = (text) => this.setState({ systemPrompt: text, screen: "setup" });
+
+  renderVals() {
+    const s = this.state;
+    const promptLen = s.prompt.length;
+    const promptTooLong = promptLen > s.maxLen;
+
+    const visibleResponses = [];
+    for (let i = 0; i < s.runCount; i++) {
+      if (i < RESPONSES.length) {
+        const r = RESPONSES[i];
+        let status = r.status[s.runPhase];
+        let tokens = r.tokens;
+        let failReason = r.failReason;
+        if (r.id === 3) {
+          if (s.retried) { status = "complete"; tokens = TOKENS_RETRY; }
+          else if (s.retrying) { status = "retrying"; }
+        }
+        visibleResponses.push({
+          label: r.label,
+          baseline: r.baseline,
+          colStyle: "flex:none;width:340px;min-height:260px;background:" + (r.baseline ? "var(--color-surface)" : "transparent") + ";position:" + (r.baseline ? "sticky" : "static") + ";left:0;z-index:" + (r.baseline ? "1" : "0") + (r.baseline ? ";box-shadow:6px 0 12px -8px rgba(0,0,0,0.25)" : ""),
+          showQueued: status === "queued",
+          showRunning: status === "running",
+          showFailed: status === "failed",
+          showRetrying: status === "retrying",
+          showComplete: status === "complete",
+          failReason,
+          retry: this.retryFailed,
+          tokens: (status === "complete" ? (r.baseline ? [{ text: r.text, hl: false, plain: true }] : (s.diffOn ? tokens : tokens.map(t => ({ text: t.text, hl: false, plain: true })))) : [])
+        });
+      } else {
+        visibleResponses.push({
+          label: "Run " + (i + 1), baseline: false,
+          colStyle: "flex:none;width:340px;min-height:260px;background:transparent",
+          showQueued: s.runPhase === "queued", showRunning: s.runPhase === "queued" ? false : false,
+          showFailed: false, showRetrying: false, showComplete: s.runPhase !== "queued",
+          failReason: "", retry: () => {},
+          tokens: s.runPhase !== "queued" ? [{ text: BASELINE, hl: false, plain: true }] : []
+        });
+      }
+    }
+
+    return {
+      isLogin: s.screen === "login",
+      isApp: s.screen !== "login",
+      isSetup: s.screen === "setup",
+      isRun: s.screen === "run",
+      isSettings: s.screen === "settings",
+      setupCurrent: s.screen === "setup" ? "page" : undefined,
+      settingsCurrent: s.screen === "settings" ? "page" : undefined,
+      email: s.email,
+      onEmailChange: this.onEmailChange,
+      login: this.login,
+      logout: this.logout,
+      goSetup: this.goSetup,
+      goSettings: this.goSettings,
+      provider: s.provider,
+      model: s.model,
+      isOpenAI: s.provider === "OpenAI",
+      isAnthropic: s.provider === "Anthropic",
+      setProviderOpenAI: this.setProviderOpenAI,
+      setProviderAnthropic: this.setProviderAnthropic,
+      modelOptions: MODELS[s.provider],
+      onModelChange: this.onModelChange,
+      systemPrompt: s.systemPrompt,
+      onSystemPromptChange: this.onSystemPromptChange,
+      prompt: s.prompt,
+      onPromptChange: this.onPromptChange,
+      promptLen,
+      maxLen: s.maxLen,
+      counterColor: promptTooLong ? "var(--color-accent-800)" : "inherit",
+      promptTooLong,
+      isCount2: s.runCount === 2, isCount3: s.runCount === 3, isCount4: s.runCount === 4, isCount5: s.runCount === 5,
+      setCount2: this.setCount2, setCount3: this.setCount3, setCount4: this.setCount4, setCount5: this.setCount5,
+      runCount: s.runCount,
+      startRun: this.startRun,
+      isPhaseQueued: s.runPhase === "queued", isPhaseProgress: s.runPhase === "progress", isPhaseComplete: s.runPhase === "complete",
+      setPhaseQueued: this.setPhaseQueued, setPhaseProgress: this.setPhaseProgress, setPhaseComplete: this.setPhaseComplete,
+      diffOn: s.diffOn, diffOff: !s.diffOn,
+      setDiffOn: this.setDiffOn, setDiffOff: this.setDiffOff,
+      visibleResponses,
+      libraryPrompts: LIBRARY.map(lp => ({ name: lp.name, text: lp.text, use: () => this.useLibraryPrompt(lp.text) })),
+      onMaxLenChange: this.onMaxLenChange
+    };
+  }
+}
+
+</script>
+</body>
+</html>
