@@ -1,7 +1,7 @@
 # API Endpoints
 
-Base path: `/api/`. All endpoints except `POST /api/auth/login/` require an authenticated session
-(Django session cookie). All request/response bodies are JSON.
+Base path: `/api/`. All endpoints except `POST /api/auth/login/` and `GET /api/auth/session/` require
+an authenticated session (Django session cookie). All request/response bodies are JSON.
 
 Common error shape:
 
@@ -27,7 +27,7 @@ Authenticates with email + password, starts a session.
 - **Responses**
   - `200 OK` — sets `sessionid` cookie
     ```json
-    { "user": { "id": 1, "email": "you@company.com" } }
+    { "user": { "id": 1, "email": "you@company.com", "is_staff": false } }
     ```
   - `400 Bad Request` — missing/malformed fields
   - `401 Unauthorized` — `{ "error": "invalid_credentials", "detail": "Email or password is incorrect." }`
@@ -41,6 +41,24 @@ Ends the session and purges the session's ephemeral prompt runs (see `db-schema.
 - **Responses**
   - `204 No Content`
   - `401 Unauthorized` — no active session
+
+### `GET /api/auth/session/`
+
+Lets the SPA learn whether it already has a valid session (e.g. after a hard refresh) and doubles as
+the CSRF cookie issuance point (`@ensure_csrf_cookie`). See
+[`auth-contract.md`](./auth-contract.md#get-apiauthsession) for the full CSRF and cookie rationale.
+
+- **Auth required:** No (public endpoint; response shape differs by auth state)
+- **Request body:** none
+- **Responses**
+  - `200 OK` — active session
+    ```json
+    { "user": { "id": 1, "email": "you@company.com", "is_staff": false } }
+    ```
+  - `200 OK` — no active session (not `401` — this is an expected boot-time state)
+    ```json
+    { "user": null }
+    ```
 
 ---
 
