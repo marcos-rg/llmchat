@@ -2,7 +2,7 @@
 
 # Implementation tasks
 
-1/24 done (4%) — 23 todo, 1 done
+1/24 done (4%) — 22 todo, 1 in-progress, 1 done
 
 Each task lives in [`docs/tasks/tasks/`](./tasks/). Statuses and evidence are
 written only by `scripts/tasks.py`; the format is defined in
@@ -13,7 +13,7 @@ written only by `scripts/tasks.py`; the format is defined in
 | | Task | Title | Layer | Depends on | Living doc | Issue |
 |---|---|---|---|---|---|---|
 | `x` | [LLMC-CORE-001](./tasks/LLMC-CORE-001.md) | Container stack and Django skeleton with health endpoint | infra | — | [stack-runbook.md](../../docs/infra/stack-runbook.md) | [#4](https://github.com/marcos-rg/llmchat/issues/4) |
-| ` ` | [LLMC-CORE-002](./tasks/LLMC-CORE-002.md) | React app shell, design tokens and health page | frontend | LLMC-CORE-001 | [app-shell.md](../../docs/frontend/app-shell.md) | — |
+| `~` | [LLMC-CORE-002](./tasks/LLMC-CORE-002.md) | React app shell, design tokens and health page | frontend | LLMC-CORE-001 | [app-shell.md](../../docs/frontend/app-shell.md) | [#6](https://github.com/marcos-rg/llmchat/issues/6) |
 | ` ` | [LLMC-CORE-003](./tasks/LLMC-CORE-003.md) | Test harness, linting and CI pipeline | infra | LLMC-CORE-001, LLMC-CORE-002 | [ci-pipeline.md](../../docs/infra/ci-pipeline.md) | — |
 
 ## Phase 1
