@@ -4,7 +4,8 @@ title: React app shell, design tokens and health page
 area: CORE
 phase: 0
 layer: frontend
-status: todo
+status: done
+issue: https://github.com/marcos-rg/llmchat/issues/6
 review: none
 depends_on:
   - LLMC-CORE-001
@@ -71,8 +72,17 @@ shells from `docs/frontend/` exist, so every later page extends a shell that is 
 - [ ] `npx tsc --noEmit` reports no type errors and `npm run build` exits `0`.
 - [ ] The built CSS bundle defines the design tokens: `--color-accent: #5980a6`, all six `--space-*`
       steps (1,2,3,4,6,8) and all three `--radius-*` values.
-- [ ] A fetch of `VITE_API_BASE_URL + "/health/"` issued from inside the `frontend` container returns
-      `200` — the configured base URL and the backend's CORS origin allowance actually agree.
+- [ ] The configured base URL and the backend's CORS origin allowance agree: a request to
+      `$VITE_API_BASE_URL/health/` carrying `Origin: http://localhost:5173` returns `200` with
+      `access-control-allow-origin: http://localhost:5173` and `access-control-allow-credentials:
+      true`, and the `frontend` container can reach the API over the Compose network and read a
+      non-null `max_prompt_length`.
+      (Amended during LLMC-CORE-002: the original wording issued this fetch against
+      `VITE_API_BASE_URL` *from inside* the `frontend` container. That can never pass — the value is
+      the browser-facing `http://localhost:8000/api`, and `localhost` inside the container is the
+      container itself, not the host. The check is split into the two things the criterion was
+      actually after: a real browser-shaped preflight-equivalent request from the host, which is
+      strictly stronger evidence about CORS, plus in-network reachability from the container.)
 - [ ] Requesting `/settings` (an unimplemented route) returns the SPA shell with `200`, not a 404 from
       the dev server — client-side routing fallback works.
 
@@ -81,7 +91,8 @@ shells from `docs/frontend/` exist, so every later page extends a shell that is 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 docker compose up -d db broker backend frontend
-timeout 120 bash -c 'until curl -fsS http://localhost:5173/ >/dev/null; do sleep 2; done'
+# No `timeout(1)` on macOS without coreutils; poll with a bounded loop instead.
+for _ in $(seq 1 60); do curl -fsS http://localhost:5173/ >/dev/null && break; sleep 2; done
 curl -fsS http://localhost:5173/ | grep -q 'id="root"'
 curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:5173/settings | grep -q 200
 docker compose run --rm frontend npx tsc --noEmit
@@ -89,10 +100,31 @@ docker compose run --rm frontend npm run build
 grep -RqiE -- '--color-accent: *#5980a6' frontend/dist/assets/*.css
 for s in 1 2 3 4 6 8; do grep -Rq -- "--space-$s:" frontend/dist/assets/*.css; done
 for r in sm md lg; do grep -Rq -- "--radius-$r:" frontend/dist/assets/*.css; done
+BASE="$(docker compose exec -T frontend printenv VITE_API_BASE_URL | tr -d '\r\n')"
+HDR="$(mktemp)"
+curl -fsS -H 'Origin: http://localhost:5173' -D "$HDR" -o /dev/null "$BASE/health/"
+grep -qi '^access-control-allow-origin: http://localhost:5173' "$HDR"
+grep -qi '^access-control-allow-credentials: true' "$HDR"
 docker compose exec -T frontend node -e \
-  "fetch(process.env.VITE_API_BASE_URL + '/health/').then(r => { if (r.status !== 200) process.exit(1); })"
+  "fetch('http://backend:8000/api/health/').then(r => r.json()).then(b => { if (b.max_prompt_length == null) process.exit(1); })"
 ```
 
 ## Evidence
 
-_None recorded yet._
+- `2026-08-28 09:01` python3 scripts/tasks.py verify LLMC-CORE-002 --run -> exit 0 (full block: compose up, SPA reachable, tsc, build, token greps, CORS headers, in-network health fetch)
+
+- `2026-08-28 09:01` docker compose ps -> db/broker/backend/frontend all healthy; curl http://localhost:5173/ -> 200 and HTML contains id="root"
+
+- `2026-08-28 09:01` curl -o /dev/null -w '%{http_code}' http://localhost:5173/settings -> 200 (SPA fallback, not a dev-server 404)
+
+- `2026-08-28 09:01` docker compose run --rm frontend npx tsc --noEmit -> exit 0, no diagnostics
+
+- `2026-08-28 09:01` docker compose run --rm frontend npm run build -> exit 0; dist/assets/index-10jP0Ntq.css 9.12 kB, index-Du543s8U.js 236.52 kB
+
+- `2026-08-28 09:01` grep on frontend/dist/assets/*.css -> '--color-accent: #5980a6' present; --space-{1,2,3,4,6,8} and --radius-{sm,md,lg} all present
+
+- `2026-08-28 09:01` curl -H 'Origin: http://localhost:5173' $VITE_API_BASE_URL/health/ (BASE=http://localhost:8000/api) -> 200 with access-control-allow-origin: http://localhost:5173 and access-control-allow-credentials: true
+
+- `2026-08-28 09:01` docker compose exec -T frontend node fetch http://backend:8000/api/health/ -> {"status":"ok","db":"ok","broker":"ok","max_prompt_length":600}
+
+- `2026-08-28 09:01` regression check after adding corsheaders: worker healthy; docker compose run --rm backend python manage.py check_queue -> queue ok: worker returned pong:edb3ddf3...

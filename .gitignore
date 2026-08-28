@@ -7,3 +7,7 @@
 # Python
 __pycache__/
 *.py[cod]
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/

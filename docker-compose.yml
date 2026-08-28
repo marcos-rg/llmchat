@@ -87,5 +87,30 @@ services:
       retries: 6
       start_period: 20s
 
+  frontend:
+    build:
+      context: ./frontend
+    image: llmchat-frontend:local
+    environment:
+      # Inlined into the bundle at build/serve time, so it must be the URL the
+      # *browser* uses — not the `backend` service name, which only resolves
+      # inside the Compose network. It is therefore a different origin from the
+      # SPA, which is what DJANGO_CORS_ALLOWED_ORIGINS exists to allow.
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
+    volumes:
+      - ./frontend:/app
+      # Anonymous volume so the bind mount above cannot hide the node_modules
+      # baked into the image. Docker seeds it from the image on first use, which
+      # is also what makes `docker compose run --rm frontend ...` work.
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5173/ >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+
 volumes:
   pgdata:

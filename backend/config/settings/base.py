@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "corsheaders",
     "django_q",
     "core",
     "prompts",
@@ -38,6 +39,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Must sit above CommonMiddleware so the CORS headers are attached even to
+    # the responses CommonMiddleware short-circuits (redirects, and the
+    # preflight OPTIONS request, which never reaches a view).
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -89,6 +94,14 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- CORS --------------------------------------------------------------------
+# The SPA is served from a different origin than the API (Vite on :5173, Django
+# on :8000), so every API call is cross-origin. Origins are listed explicitly and
+# credentials are allowed, because the API authenticates with a session cookie:
+# CORS_ALLOW_ALL_ORIGINS would make browsers drop the cookie instead.
+CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+CORS_ALLOW_CREDENTIALS = True
 
 # --- Redis / Django-Q2 -------------------------------------------------------
 REDIS_HOST = os.environ.get("REDIS_HOST", "broker")
