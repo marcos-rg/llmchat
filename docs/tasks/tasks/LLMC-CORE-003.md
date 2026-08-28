@@ -4,7 +4,8 @@ title: Test harness, linting and CI pipeline
 area: CORE
 phase: 0
 layer: infra
-status: todo
+status: in-progress
+issue: https://github.com/marcos-rg/llmchat/issues/8
 review: none
 depends_on:
   - LLMC-CORE-001
