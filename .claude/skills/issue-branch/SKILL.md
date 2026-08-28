@@ -24,11 +24,12 @@ Options:
 | `--title <text>` | Issue title (required) |
 | `--body <text>` | Issue body |
 | `--body-file <path>` | Read body from a file, or `-` for stdin (use for multi-line bodies) |
-| `--branch <name>` | Branch name. Default: `feature/<slug-of-title>` |
+| `--branch <name>` | Branch name. Default: `task/<ID>-<slug>` when a task ID is found, else `feature/<slug-of-title>` |
 | `--label <name>` | Label to add (repeatable) |
 | `--assignee <user>` | Default `@me` |
 | `--base <branch>` | Base branch |
 | `--no-checkout` | Create the branch without switching to it |
+| `--dry-run` | Print the resolved branch and issue body; create nothing |
 
 Output on success:
 
@@ -39,6 +40,8 @@ branch: feature/define-requirements
 
 ## Guidelines
 
+- Leave `--branch` off unless you need a specific name. The default already resolves to
+  `task/<ID>-<slug>` whenever a task ID is present (see below).
 - Write the title as a short imperative phrase; put context, acceptance criteria and
   scope in the body.
 - A body that starts with YAML frontmatter (any task file) is reformatted automatically:
@@ -62,7 +65,6 @@ python3 scripts/tasks.py show TSC-AUTH-002 > /tmp/issue-body.md
 ./.claude/skills/issue-branch/scripts/new-issue-branch.sh \
   --title "[TSC-AUTH-002] Implement the authentication backend" \
   --body-file /tmp/issue-body.md \
-  --branch "task/TSC-AUTH-002-auth-backend" \
   --label task
 python3 scripts/tasks.py link TSC-AUTH-002 https://github.com/<owner>/<repo>/issues/42
 ```
@@ -73,8 +75,30 @@ issue reads as prose rather than raw YAML.
 `tasks.py link` records the issue URL in the task's frontmatter, so the link is
 bidirectional: the issue body carries the task, and the task carries the issue.
 
-Branch naming for tasks: `task/<TASK-ID>-<short-slug>`. The ID leads so branches sort and
-grep by task, and so a stale branch is traceable to its ledger entry.
+## Branch naming
+
+`task/<TASK-ID>-<short-slug>` when a task ID is in play, `feature/<slug-of-title>` otherwise.
+The ID leads so branches sort and grep by task, and so a stale branch is traceable to its
+ledger entry.
+
+The script derives the ID itself, in this order:
+
+1. A bracketed title prefix — `[LLMC-AUTH-002] Email/password auth endpoints`
+2. A colon title prefix — `LLMC-AUTH-002: Email/password auth endpoints`
+3. The `id:` field of the body's YAML frontmatter (so `tasks.py show <ID>` piped in as
+   `--body-file` is enough on its own)
+
+The slug drops the ID prefix, is trimmed to 40 characters on a word boundary, and is
+omitted entirely if the title is nothing but the ID:
+
+```
+[LLMC-AUTH-002] Email/password auth endpoints and session scoping
+  -> task/LLMC-AUTH-002-email-password-auth-endpoints-and
+Define requirements  ->  feature/define-requirements
+```
+
+Use `--dry-run` to see the resolved branch (and the formatted body) without creating
+anything. An explicit `--branch` always wins.
 
 ## Failure modes worth knowing
 

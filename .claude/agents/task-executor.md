@@ -76,10 +76,12 @@ python3 scripts/tasks.py show <ID> > /tmp/issue-body.md
 ./.claude/skills/issue-branch/scripts/new-issue-branch.sh \
   --title "[<ID>] <task title>" \
   --body-file /tmp/issue-body.md \
-  --branch "task/<ID>-<short-slug>" \
   --label task
 python3 scripts/tasks.py link <ID> <issue-url>
 ```
+
+The `[<ID>]` title prefix is what makes the branch `task/<ID>-<slug>`, so do not pass
+`--branch` yourself unless you need a name the default would not produce.
 
 The issue body is the task itself, so the objective, scope, and acceptance criteria are
 visible to a reviewer on GitHub without opening the repository. `link` writes the URL back

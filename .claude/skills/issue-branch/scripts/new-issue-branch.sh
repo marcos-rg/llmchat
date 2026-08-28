@@ -16,6 +16,7 @@ Options:
   --assignee <user>     Assignee (default: @me)
   --base <branch>       Base branch for the new branch
   --no-checkout         Create the branch without checking it out
+  --dry-run             Print the resolved branch and issue body; create nothing
   -h, --help            Show this help
 EOF
 }
@@ -28,6 +29,7 @@ base=""
 assignee="@me"
 labels=()
 checkout=1
+dry_run=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +41,7 @@ while [[ $# -gt 0 ]]; do
     --assignee)   assignee="${2:?--assignee requires a value}"; shift 2 ;;
     --label)      labels+=("${2:?--label requires a value}"); shift 2 ;;
     --no-checkout) checkout=0; shift ;;
+    --dry-run)    dry_run=1; shift ;;
     -h|--help)    usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -65,6 +68,19 @@ if [[ -n "$body_file" ]]; then
   fi
 fi
 
+# A task ID in the title ("[LLMC-AUTH-002] ..." or "LLMC-AUTH-002: ...") or in the
+# frontmatter `id:` of the body drives the default branch name, so the branch is
+# traceable back to its ledger entry.
+task_id=""
+id_re='[A-Z][A-Z0-9]*(-[A-Z0-9]+)+'
+if [[ "$title" =~ ^\[($id_re)\] ]]; then
+  task_id="${BASH_REMATCH[1]}"
+elif [[ "$title" =~ ^($id_re)[[:space:]]*: ]]; then
+  task_id="${BASH_REMATCH[1]}"
+elif [[ "$body" =~ (^|$'\n')id:[[:space:]]*($id_re)[[:space:]]*$'\n' ]]; then
+  task_id="${BASH_REMATCH[2]}"
+fi
+
 # A body lifted from a task file starts with YAML frontmatter, which GitHub renders as
 # a wall of raw keys. Turn it into a compact markdown header instead. Left as-is when
 # there is no frontmatter, or when python3 is unavailable.
@@ -78,23 +94,45 @@ fi
 # -E, not \+: BSD sed (macOS) does not treat \+ as a quantifier, which would leave
 # spaces in the slug and produce an invalid git ref.
 slugify() {
-  printf '%s' "$1" \
+  local max="${2:-50}" slug
+  slug="$(printf '%s' "$1" \
     | tr '[:upper:]' '[:lower:]' \
-    | sed -E -e 's/[^a-z0-9]+/-/g' -e 's/^-+//' -e 's/-+$//' \
-    | cut -c1-50 \
-    | sed -E 's/-+$//'
+    | sed -E -e 's/[^a-z0-9]+/-/g' -e 's/^-+//' -e 's/-+$//')"
+  if (( ${#slug} > max )); then
+    slug="${slug:0:max}"
+    # Drop the partial trailing word, unless that would leave nothing.
+    [[ "${slug}" == *-* ]] && slug="${slug%-*}"
+  fi
+  printf '%s' "$slug" | sed -E 's/-+$//'
 }
 
 if [[ -z "$branch" ]]; then
-  slug="$(slugify "$title")"
-  [[ -n "$slug" ]] || slug="issue"
-  branch="feature/${slug}"
+  # The ID leads so branches sort and grep by task; the slug is only there to make
+  # the branch readable, so it is trimmed harder when an ID already identifies it.
+  if [[ -n "$task_id" ]]; then
+    subject="${title#\[$task_id\]}"
+    subject="${subject#$task_id}"
+    subject="${subject#:}"
+    slug="$(slugify "$subject" 40)"
+    branch="task/${task_id}${slug:+-$slug}"
+  else
+    slug="$(slugify "$title")"
+    [[ -n "$slug" ]] || slug="issue"
+    branch="feature/${slug}"
+  fi
 fi
 
 git check-ref-format --branch "$branch" >/dev/null 2>&1 || {
   echo "Error: '$branch' is not a valid branch name" >&2
   exit 1
 }
+
+if (( dry_run )); then
+  echo "branch: $branch"
+  echo "---"
+  printf '%s\n' "$body"
+  exit 0
+fi
 
 # Uncommitted changes would be carried into the new branch on checkout.
 if (( checkout )) && [[ -n "$(git status --porcelain)" ]]; then
